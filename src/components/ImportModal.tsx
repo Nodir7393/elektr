@@ -62,7 +62,8 @@ export function ImportModal({ isOpen, onClose, onImportComplete, activeCategory 
             const headers: Record<string, string> = { Accept: 'application/json' };
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
-            const response = await fetch('/api/substations/import', {
+            const apiBase = (import.meta.env.VITE_API_URL || '') + '/api';
+            const response = await fetch(`${apiBase}/substations/import`, {
                 method: 'POST',
                 headers,
                 body: formData,
