@@ -13,7 +13,7 @@ class AdminSeeder extends Seeder
         ['email' => 'admin@qiyom.uz'],
         [
             'name' => 'Admin',
-            'password' => bcrypt('admin123'),
+            'password' => bcrypt('Qiyomiddin123'),
         ]
         );
     }
