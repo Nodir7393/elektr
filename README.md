@@ -10,46 +10,48 @@ Elektr hisoblagichlari va podstansiyalarni boshqarish uchun web-tizim. Tizim orq
 - **Lucide React** — ikonkalar
 
 ### Backend
-- **Laravel 12** — PHP framework (RESTful API)
+- **Laravel 12** — PHP 8.4 framework (RESTful API)
 - **PostgreSQL 17** — ma'lumotlar bazasi
+- **Redis** — cache / queue / session
 - **Laravel Sanctum** — token-asosli autentifikatsiya
 - **PhpSpreadsheet** — Excel import
+
+### DevOps
+- **Docker + docker-compose** — lokal stack (api, pwa, queue, db, redis)
+- **GitHub Actions** — CI (api testlari + pwa build)
+- **Zero-downtime deploy** — `server/` reliz-symlink skriptlari
 
 ## Loyiha tuzilmasi
 
 ```
 qiyom/
-├── src/                          # Frontend (React)
-│   ├── components/
-│   │   ├── LoginPage.tsx         # Login sahifasi
-│   │   ├── SubstationTable.tsx   # Ma'lumotlar jadvali
-│   │   ├── SubstationModal.tsx   # Qo'shish/tahrirlash modal
-│   │   ├── DeleteModal.tsx       # O'chirish tasdiqlash
-│   │   ├── ImportModal.tsx       # Excel import modal
-│   │   ├── Statistics.tsx        # Statistika kartochkalar
-│   │   ├── Filters.tsx           # Filtrlash
-│   │   └── Pagination.tsx        # Sahifalash (30 ta/sahifa)
-│   ├── lib/
-│   │   └── api.ts                # API client (fetch + auth)
-│   ├── types/
-│   │   └── database.ts           # TypeScript tiplar
-│   └── App.tsx                   # Asosiy komponent
-├── backend/                      # Backend (Laravel)
+├── pwa/                          # Frontend (React + Vite)
+│   ├── src/
+│   │   ├── components/           # UI komponentlar (Login, Table, Modal, Filters, ...)
+│   │   ├── lib/api.ts            # API client (fetch + auth)
+│   │   ├── types/database.ts     # TypeScript tiplar
+│   │   └── App.tsx               # Asosiy komponent
+│   └── vite.config.ts            # Vite + proxy sozlash
+├── api/                          # Backend (Laravel 12)
 │   ├── app/
 │   │   ├── Http/Controllers/
 │   │   │   ├── AuthController.php        # Login/Logout
 │   │   │   └── SubstationController.php  # CRUD + Import
-│   │   └── Models/
-│   │       ├── User.php
-│   │       └── Substation.php
+│   │   └── Models/               # User, Substation
 │   ├── database/
 │   │   ├── migrations/           # Baza migratsiyalari
-│   │   └── seeders/
-│   │       └── AdminSeeder.php   # Admin foydalanuvchi
-│   └── routes/
-│       └── api.php               # API routelar
-├── dist/                         # Production build
-└── vite.config.ts                # Vite + proxy sozlash
+│   │   └── seeders/AdminSeeder.php   # Admin foydalanuvchi
+│   └── routes/api.php            # API routelar
+├── docker/
+│   ├── backend/Dockerfile        # PHP 8.4 (yandex apt mirror fix)
+│   └── frontend/Dockerfile       # Node 20
+├── server/                       # Zero-downtime deploy skriptlari
+│   ├── setup.sh · deploy.sh · rollback.sh
+│   └── deploy.conf.example
+├── .github/workflows/ci.yml      # CI: api testlari + pwa build
+├── docker-compose.yml            # api · pwa · queue · db · redis
+├── .env.template                 # docker-compose root env namunasi
+└── .gitignore
 ```
 
 ## O'rnatish
@@ -79,7 +81,7 @@ ALTER DATABASE qiyom OWNER TO qiyom_user;
 ### 2. Backend o'rnatish
 
 ```bash
-cd backend
+cd api
 
 # Paketlarni o'rnatish
 composer install
@@ -111,20 +113,43 @@ php artisan db:seed --class=AdminSeeder
 ### 3. Frontend o'rnatish
 
 ```bash
-# Asosiy papkada
+cd pwa
 npm install
 ```
 
 ## Ishga tushirish
 
-### Development rejimi
+### Docker bilan (eng oson)
+
+Butun stack (api, pwa, queue, postgres, redis) bitta buyruq bilan:
+
+```bash
+cp .env.template .env
+# APP_KEY generatsiya qiling va .env ga qo'ying:
+docker compose run --rm api php artisan key:generate --show
+
+docker compose up -d --build
+docker compose exec api php artisan migrate
+docker compose exec api php artisan db:seed --class=AdminSeeder
+```
+
+Portlar (konflikt bo'lmasligi uchun standart bo'lmagan):
+
+| Xizmat | URL / port |
+|--------|-----------|
+| pwa (frontend) | http://localhost:5173 |
+| api (backend)  | http://localhost:8001 |
+| PostgreSQL     | localhost:5433 |
+| Redis          | localhost:6380 |
+
+### Development rejimi (Dockersiz)
 
 ```bash
 # Terminal 1: Backend server
-cd backend && php artisan serve --port=8000
+cd api && php artisan serve --port=8000
 
 # Terminal 2: Frontend dev server
-npm run dev
+cd pwa && npm run dev
 ```
 
 Brauzerda: [http://localhost:5173](http://localhost:5173)
@@ -132,17 +157,17 @@ Brauzerda: [http://localhost:5173](http://localhost:5173)
 ### Production build
 
 ```bash
-npm run build
+cd pwa && npm run build
 ```
 
-Tayyor fayllar `dist/` papkasida hosil bo'ladi.
+Tayyor fayllar `pwa/dist/` papkasida hosil bo'ladi.
 
 ## Login
 
 | Maydon | Qiymat |
 |--------|--------|
 | Email | `admin@qiyom.uz` |
-| Parol | `admin123` |
+| Parol | `Qiyomiddin123` |
 
 > **Eslatma:** Parolni production muhitda albatta o'zgartiring.
 
@@ -196,6 +221,21 @@ Import modal orqali `.xlsx`, `.xls`, `.csv` formatdagi fayllarni yuklash mumkin.
 - **Kategoriya** — 220-500 kV va 35-110 kV alohida tablar
 - **Pagination** — 30 ta yozuv har sahifada
 - **Excel import** — drag-and-drop bilan fayl yuklash
+
+## Deploy (server)
+
+Zero-downtime deploy `server/` skriptlari orqali (reliz papkasi + `current` symlink):
+
+```bash
+cp server/deploy.conf.example server/deploy.conf   # PROJECT_NAME, REPO_URL, ... ni to'ldiring
+bash server/setup.sh                                # bir marta: releases/ shared/ tuzilmasi
+# shared/.env ichida APP_KEY va DB_PASSWORD ni to'ldiring
+
+bash server/deploy.sh      # yangi reliz + migratsiya + atomik almashtirish + health-check
+bash server/rollback.sh    # muammo bo'lsa oldingi relizga qaytish
+```
+
+Har bir push `.github/workflows/ci.yml` orqali api testlari va pwa build'ini ishga tushiradi.
 
 ## Litsenziya
 
