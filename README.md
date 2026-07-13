@@ -235,7 +235,13 @@ bash server/deploy.sh      # yangi reliz + migratsiya + atomik almashtirish + he
 bash server/rollback.sh    # muammo bo'lsa oldingi relizga qaytish
 ```
 
-Har bir push `.github/workflows/ci.yml` orqali api testlari va pwa build'ini ishga tushiradi.
+### CI orqali avtomatik deploy
+
+`.github/workflows/ci.yml` har bir push'da api testlari va pwa build'ini, `main`'ga push'da esa (testlar o'tsa) `deploy` job orqali serverda `server/deploy.sh` ni SSH bilan ishga tushiradi.
+
+Kerakli **GitHub Secrets**: `SSH_HOST`, `SSH_USER`, `SSH_KEY`, `DEPLOY_PATH` (serverdagi bootstrap repo yo'li), ixtiyoriy `SSH_PORT`.
+
+Serverda bir marta bootstrap: repo'ni `DEPLOY_PATH` ga clone qiling, `server/deploy.conf` ni to'ldiring va `bash server/setup.sh` ni ishga tushiring.
 
 ## Litsenziya
 
