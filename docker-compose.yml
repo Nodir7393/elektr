@@ -1,0 +1,118 @@
+# qiyom — local development / verification stack
+# Tashqi portlar konflikt bo'lmasligi uchun standart bo'lmagan portlarga o'rnatilgan:
+#   pwa 5173 · api 8001 · postgres 5433 · redis 6380
+#
+# Env qiymatlari root .env (.env.template dan nusxa) orqali override qilinadi.
+# Konteynerlarda .env fayl yo'q (.dockerignore chiqargan) — barcha config shu yerdan beriladi.
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-qiyom}
+      POSTGRES_USER: ${DB_USERNAME:-qiyom_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-qiyom_secret}
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-qiyom_user} -d ${DB_DATABASE:-qiyom}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./api
+      dockerfile: ../docker/backend/Dockerfile
+    image: qiyom/api:local
+    environment:
+      APP_NAME: ${APP_NAME:-qiyom}
+      APP_ENV: ${APP_ENV:-local}
+      APP_KEY: ${APP_KEY}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_URL: ${APP_URL:-http://localhost:8001}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Tashkent}
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-qiyom}
+      DB_USERNAME: ${DB_USERNAME:-qiyom_user}
+      DB_PASSWORD: ${DB_PASSWORD:-qiyom_secret}
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      SESSION_DRIVER: redis
+    ports:
+      - "8001:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  queue:
+    image: qiyom/api:local
+    command: ["php", "artisan", "queue:work", "--tries=3", "--timeout=90"]
+    environment:
+      APP_NAME: ${APP_NAME:-qiyom}
+      APP_ENV: ${APP_ENV:-local}
+      APP_KEY: ${APP_KEY}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Tashkent}
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-qiyom}
+      DB_USERNAME: ${DB_USERNAME:-qiyom_user}
+      DB_PASSWORD: ${DB_PASSWORD:-qiyom_secret}
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+    depends_on:
+      api:
+        condition: service_started
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  pwa:
+    build:
+      context: ./pwa
+      dockerfile: ../docker/frontend/Dockerfile
+    image: qiyom/pwa:local
+    environment:
+      # Browser /api ga so'rov yuboradi -> vite dev server konteyner ichida api:8000 ga proxy qiladi
+      VITE_PROXY_TARGET: http://api:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  redis_data:

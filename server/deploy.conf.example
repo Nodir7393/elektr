@@ -1,0 +1,20 @@
+# qiyom deploy konfiguratsiyasi — serverda `deploy.conf` nomi bilan nusxa oling.
+#   cp deploy.conf.example deploy.conf && nano deploy.conf
+
+PROJECT_NAME=qiyom
+SERVER_PATH=/var/www/qiyom
+
+# Git manbasi
+REPO_URL=git@github.com:Nodir7393/elektr.git
+BRANCH=main
+
+# Nechta eski relizni saqlash (rollback uchun)
+KEEP_RELEASES=5
+
+# Deploydan keyingi health-check (bo'sh bo'lsa o'tkazib yuboriladi)
+HEALTHCHECK_URL=http://localhost:8001/api
+HEALTHCHECK_RETRIES=10
+HEALTHCHECK_DELAY=3
+
+# docker compose buyrug'i (ba'zi serverlarda `docker-compose`)
+COMPOSE="docker compose"

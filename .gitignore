@@ -1,23 +1,34 @@
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+# --- Root env ---
+/.env
+.env.backup
+.env.production
 
-node_modules
-dist
-dist-ssr
-*.local
+# --- Deploy ---
+/server/deploy.conf
+/releases/
+/current
+/shared/
 
+# --- API (Laravel) ---
+/api/.env
+/api/vendor/
+/api/storage/*.key
+/api/storage/logs/*.log
+/api/public/build
+/api/public/hot
+/api/public/storage
+/api/bootstrap/cache/*.php
+
+# --- PWA (Vite/React) — batafsil qoidalar pwa/.gitignore da ---
+/pwa/node_modules/
+/pwa/dist/
+/pwa/.env
+
+# --- Tooling / IDE / OS ---
+.claude/
+.idea/
 .vscode/*
 !.vscode/extensions.json
-.idea
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-.env
+Thumbs.db
+*.log
