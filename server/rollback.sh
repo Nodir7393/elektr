@@ -1,37 +1,33 @@
-#!/usr/bin/env bash
-# qiyom — oldingi relizga qaytarish.
-# `current` symlink'ni bir oldingi (vaqt bo'yicha) relizga o'tkazadi va servislarni qayta ko'taradi.
+#!/bin/bash
+# qiyom — oldingi relizga qaytarish (native).
+# `current` symlink'ni bir oldingi relizga o'tkazadi va servislarni yangilaydi.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONF="${SCRIPT_DIR}/deploy.conf"
-[[ -f "$CONF" ]] || { echo "XATO: ${CONF} topilmadi." >&2; exit 1; }
-# shellcheck disable=SC1090
-source "$CONF"
+APP_DIR="/var/www/qiyom"
+RELEASES_DIR="$APP_DIR/releases"
+PHP_FPM="php8.4-fpm"
+WORKER="qiyom-worker"
 
-: "${COMPOSE:=docker compose}"
-RELEASES_DIR="${SERVER_PATH}/releases"
-CURRENT="${SERVER_PATH}/current"
+CURRENT="$(readlink -f "$APP_DIR/current" 2>/dev/null || true)"
+CURRENT_NAME="$(basename "$CURRENT" 2>/dev/null || echo '')"
+PREVIOUS="$(ls -dt "$RELEASES_DIR"/*/ 2>/dev/null | grep -v "$CURRENT_NAME" | head -1 || true)"
 
-log() { echo -e "\033[1;34m==>\033[0m $*"; }
-
-CURRENT_TARGET=""
-[[ -L "$CURRENT" ]] && CURRENT_TARGET="$(readlink -f "$CURRENT")"
-
-# Joriydan boshqa, eng so'nggi relizni topamiz
-TARGET=""
-while IFS= read -r dir; do
-  dir="${dir%/}"
-  if [[ "$dir" != "$CURRENT_TARGET" ]]; then TARGET="$dir"; break; fi
-done < <(ls -1dt "${RELEASES_DIR}"/*/ 2>/dev/null)
-
-if [[ -z "$TARGET" ]]; then
-  echo "XATO: Qaytish uchun oldingi reliz topilmadi." >&2
+if [[ -z "$PREVIOUS" ]]; then
+  echo "XATO: Qaytish uchun oldingi reliz topilmadi!" >&2
   exit 1
 fi
 
-log "Rollback: ${CURRENT_TARGET:-<none>}  ->  ${TARGET}"
-ln -sfn "$TARGET" "$CURRENT"
-( cd "$CURRENT" && $COMPOSE up -d --remove-orphans )
+echo "  Current:  ${CURRENT_NAME:-<none>}"
+echo "  Rollback: $(basename "$PREVIOUS")"
 
-log "Rollback tugadi."
+if [[ "${1:-}" != "-y" ]]; then
+  read -p "Davom etasizmi? (y/n): " -n 1 -r; echo
+  [[ ! $REPLY =~ ^[Yy]$ ]] && echo "Bekor qilindi." && exit 0
+fi
+
+ln -sfn "${PREVIOUS%/}" "$APP_DIR/current"
+php "$APP_DIR/current/api/artisan" queue:restart 2>/dev/null || true
+sudo supervisorctl restart "$WORKER":* 2>/dev/null || true
+sudo systemctl reload "$PHP_FPM" 2>/dev/null || true
+
+echo "  ROLLBACK COMPLETE!"

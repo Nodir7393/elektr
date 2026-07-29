@@ -222,26 +222,43 @@ Import modal orqali `.xlsx`, `.xls`, `.csv` formatdagi fayllarni yuklash mumkin.
 - **Pagination** — 30 ta yozuv har sahifada
 - **Excel import** — drag-and-drop bilan fayl yuklash
 
-## Deploy (server)
+## Deploy (server) — native zero-downtime
 
-Zero-downtime deploy `server/` skriptlari orqali (reliz papkasi + `current` symlink):
+Native (nginx + php-fpm), reliz-papkasi + `current` symlink modeli. Frontend statik
+`pwa/dist` sifatida nginx orqali beriladi (PM2/Node server kerak emas).
+
+```
+/var/www/qiyom/
+├── deploy.sh · rollback.sh      # standalone (server/ dan nusxa)
+├── releases/<timestamp>/        # har reliz — GitHub'dan toza klon
+├── shared/{.env,.env.frontend,storage}   # relizlar aro saqlanadi
+└── current -> releases/<timestamp>       # atomik symlink
+```
+
+Bir martalik bootstrap:
 
 ```bash
-cp server/deploy.conf.example server/deploy.conf   # PROJECT_NAME, REPO_URL, ... ni to'ldiring
-bash server/setup.sh                                # bir marta: releases/ shared/ tuzilmasi
-# shared/.env ichida APP_KEY va DB_PASSWORD ni to'ldiring
+bash <repo>/server/setup.sh                 # releases/ shared/ + deploy.sh/rollback.sh
+# shared/.env (APP_KEY, DB) va shared/.env.frontend (VITE_API_URL) ni to'ldiring
+bash /var/www/qiyom/deploy.sh               # birinchi reliz
 
-bash server/deploy.sh      # yangi reliz + migratsiya + atomik almashtirish + health-check
-bash server/rollback.sh    # muammo bo'lsa oldingi relizga qaytish
+# nginx: server/nginx/*.conf ni sites-available ga qo'ying (SSL bloklari certbot'niki)
+# supervisor: server/supervisor/qiyom-worker.conf (ixtiyoriy queue worker)
+```
+
+Keyingi deploylar / rollback:
+
+```bash
+bash /var/www/qiyom/deploy.sh      # yangi reliz + migratsiya + build + atomik almashtirish + health-check
+bash /var/www/qiyom/rollback.sh    # oldingi relizga qaytish
 ```
 
 ### CI orqali avtomatik deploy
 
-`.github/workflows/ci.yml` har bir push'da api testlari va pwa build'ini, `main`'ga push'da esa (testlar o'tsa) `deploy` job orqali serverda `server/deploy.sh` ni SSH bilan ishga tushiradi.
+`.github/workflows/ci.yml` har push'da api testlari + pwa build'ini, `main`'ga push'da esa
+(testlar o'tsa) `deploy` job orqali SSH bilan serverdagi `/var/www/qiyom/deploy.sh` ni ishga tushiradi.
 
-Kerakli **GitHub Secrets**: `SSH_HOST`, `SSH_USER`, `SSH_KEY`, `DEPLOY_PATH` (serverdagi bootstrap repo yo'li), ixtiyoriy `SSH_PORT`.
-
-Serverda bir marta bootstrap: repo'ni `DEPLOY_PATH` ga clone qiling, `server/deploy.conf` ni to'ldiring va `bash server/setup.sh` ni ishga tushiring.
+Kerakli **GitHub Secrets**: `SSH_HOST`, `SSH_USER`, `SSH_KEY`, ixtiyoriy `SSH_PORT`.
 
 ## Litsenziya
 

@@ -79,13 +79,12 @@ jobs:
       cancel-in-progress: false
     steps:
       # Talab qilinadigan GitHub Secrets:
-      #   SSH_HOST      - server IP/domen
-      #   SSH_USER      - deploy foydalanuvchisi
-      #   SSH_KEY       - private SSH kaliti (server authorized_keys ga public qo'shilgan)
-      #   DEPLOY_PATH   - serverdagi bootstrap repo yo'li (server/deploy.conf shu yerda)
-      #   SSH_PORT      - ixtiyoriy (default 22)
-      # Serverda bir marta bootstrap: repo'ni DEPLOY_PATH ga clone qiling,
-      #   `cp server/deploy.conf.example server/deploy.conf` to'ldiring va `bash server/setup.sh` ni ishga tushiring.
+      #   SSH_HOST   - server IP/domen
+      #   SSH_USER   - deploy foydalanuvchisi (masalan: deploy)
+      #   SSH_KEY    - private SSH kaliti (server authorized_keys ga public qo'shilgan)
+      #   SSH_PORT   - ixtiyoriy (default 22)
+      # Serverda bir marta bootstrap: bash <repo>/server/setup.sh, shared/.env + shared/.env.frontend to'ldiring.
+      # deploy.sh standalone /var/www/qiyom/deploy.sh — har safar GitHub'dan yangi reliz klonlaydi.
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -95,6 +94,4 @@ jobs:
           port: ${{ secrets.SSH_PORT || '22' }}
           script_stop: true
           script: |
-            cd "${{ secrets.DEPLOY_PATH }}"
-            git pull --ff-only origin main
-            bash server/deploy.sh
+            bash /var/www/qiyom/deploy.sh
