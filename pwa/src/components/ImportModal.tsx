@@ -82,7 +82,7 @@ export function ImportModal({ isOpen, onClose, onImportComplete, activeCategory 
                     onImportComplete();
                 }
             }
-        } catch (error) {
+        } catch {
             setResult({
                 success: false,
                 message: 'Server bilan bog\'lanishda xatolik yuz berdi',

@@ -22,8 +22,8 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
             const result = await api.login(email, password);
             localStorage.setItem('auth_token', result.token);
             onLoginSuccess();
-        } catch (err: any) {
-            setError(err.message || 'Login yoki parol noto\'g\'ri');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Login yoki parol noto\'g\'ri');
         } finally {
             setLoading(false);
         }

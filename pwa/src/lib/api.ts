@@ -1,5 +1,13 @@
 import type { Substation } from '../types/database';
 
+export interface AuthUser {
+    id: number;
+    name: string;
+    email: string;
+    created_at?: string;
+    updated_at?: string;
+}
+
 const API_BASE = (import.meta.env.VITE_API_URL || '') + '/api';
 
 function getAuthHeaders(): Record<string, string> {
@@ -28,12 +36,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 export const api = {
     // Auth
-    login: (email: string, password: string): Promise<{ user: any; token: string }> => {
+    login: (email: string, password: string): Promise<{ user: AuthUser; token: string }> => {
         return fetch(`${API_BASE}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
             body: JSON.stringify({ email, password }),
-        }).then((r) => handleResponse<{ user: any; token: string }>(r));
+        }).then((r) => handleResponse<{ user: AuthUser; token: string }>(r));
     },
 
     logout: (): Promise<void> => {
@@ -45,10 +53,10 @@ export const api = {
         });
     },
 
-    getMe: (): Promise<any> => {
+    getMe: (): Promise<AuthUser> => {
         return fetch(`${API_BASE}/me`, {
             headers: { ...getAuthHeaders() },
-        }).then((r) => handleResponse<any>(r));
+        }).then((r) => handleResponse<AuthUser>(r));
     },
 
     // Substations
