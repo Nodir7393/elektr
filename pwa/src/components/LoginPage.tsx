@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Building2, Lock, Mail, Eye, EyeOff } from 'lucide-react';
 import { api } from '../lib/api';
+import type { AuthUser } from '../lib/api';
 
 interface LoginPageProps {
-    onLoginSuccess: () => void;
+    onLoginSuccess: (user: AuthUser) => void;
 }
 
 export function LoginPage({ onLoginSuccess }: LoginPageProps) {
@@ -21,7 +22,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
         try {
             const result = await api.login(email, password);
             localStorage.setItem('auth_token', result.token);
-            onLoginSuccess();
+            onLoginSuccess(result.user);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Login yoki parol noto\'g\'ri');
         } finally {

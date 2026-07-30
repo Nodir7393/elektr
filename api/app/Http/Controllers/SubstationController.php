@@ -9,15 +9,23 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class SubstationController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $substations = Substation::orderBy('created_at', 'asc')->get();
+        $query = Substation::orderBy('created_at', 'asc');
 
-        return response()->json($substations);
+        // Filial foydalanuvchisi faqat o'z filiali podstansiyalarini ko'radi
+        $user = $request->user();
+        if (! $user->isAdmin()) {
+            $query->where('met_filiali_nomi', $this->filialNomi($user));
+        }
+
+        return response()->json($query->get());
     }
 
     public function store(Request $request): JsonResponse
     {
+        $user = $request->user();
+
         $validated = $request->validate([
             'met_filiali_nomi' => 'required|string|max:255',
             'podstansiya_nomi' => 'required|string|max:255',
@@ -37,18 +45,28 @@ class SubstationController extends Controller
             'voltage_category' => 'required|string|in:220-500kV,35-110kV',
         ]);
 
+        // Filial foydalanuvchisi faqat o'z filialiga qo'sha oladi
+        if (! $user->isAdmin()) {
+            $validated['met_filiali_nomi'] = $this->filialNomi($user);
+        }
+
         $substation = Substation::create($validated);
 
         return response()->json($substation, 201);
     }
 
-    public function show(Substation $substation): JsonResponse
+    public function show(Request $request, Substation $substation): JsonResponse
     {
+        $this->authorizeFilial($request->user(), $substation);
+
         return response()->json($substation);
     }
 
     public function update(Request $request, Substation $substation): JsonResponse
     {
+        $user = $request->user();
+        $this->authorizeFilial($user, $substation);
+
         $validated = $request->validate([
             'met_filiali_nomi' => 'sometimes|required|string|max:255',
             'podstansiya_nomi' => 'sometimes|required|string|max:255',
@@ -68,16 +86,41 @@ class SubstationController extends Controller
             'voltage_category' => 'sometimes|required|string|in:220-500kV,35-110kV',
         ]);
 
+        // Filial foydalanuvchisi podstansiyani boshqa filialga o'tkaza olmaydi
+        if (! $user->isAdmin()) {
+            $validated['met_filiali_nomi'] = $this->filialNomi($user);
+        }
+
         $substation->update($validated);
 
         return response()->json($substation);
     }
 
-    public function destroy(Substation $substation): JsonResponse
+    public function destroy(Request $request, Substation $substation): JsonResponse
     {
+        $this->authorizeFilial($request->user(), $substation);
+
         $substation->delete();
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * Foydalanuvchining filial nomi (met_filiali_nomi bilan solishtiriladi).
+     */
+    private function filialNomi($user): ?string
+    {
+        return $user->filial?->nomi;
+    }
+
+    /**
+     * Filial foydalanuvchisi faqat o'z filiali podstansiyasiga tegishi mumkin.
+     */
+    private function authorizeFilial($user, Substation $substation): void
+    {
+        if (! $user->isAdmin() && $substation->met_filiali_nomi !== $this->filialNomi($user)) {
+            abort(403, 'Bu podstansiya sizning filialingizga tegishli emas.');
+        }
     }
 
     public function import(Request $request): JsonResponse

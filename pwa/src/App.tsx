@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Building2, Database, Plus, Upload, LogOut } from 'lucide-react';
+import { Building2, Database, Plus, Upload, LogOut, Settings } from 'lucide-react';
 import { api } from './lib/api';
+import type { AuthUser } from './lib/api';
 import type { Substation } from './types/database';
 import { Statistics } from './components/Statistics';
 import { Filters } from './components/Filters';
@@ -10,12 +11,15 @@ import { DeleteModal } from './components/DeleteModal';
 import { ImportModal } from './components/ImportModal';
 import { Pagination } from './components/Pagination';
 import { LoginPage } from './components/LoginPage';
+import { ManagementModal } from './components/ManagementModal';
 
 type VoltageCategory = '220-500kV' | '35-110kV';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [isManagementOpen, setIsManagementOpen] = useState(false);
   const [substations, setSubstations] = useState<Substation[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<VoltageCategory>('220-500kV');
@@ -33,7 +37,8 @@ function App() {
     const token = localStorage.getItem('auth_token');
     if (token) {
       api.getMe()
-        .then(() => {
+        .then((user) => {
+          setCurrentUser(user);
           setIsAuthenticated(true);
         })
         .catch(() => {
@@ -127,12 +132,16 @@ function App() {
     }
     localStorage.removeItem('auth_token');
     setIsAuthenticated(false);
+    setCurrentUser(null);
     setSubstations([]);
   };
 
-  const handleLoginSuccess = () => {
+  const handleLoginSuccess = (user: AuthUser) => {
+    setCurrentUser(user);
     setIsAuthenticated(true);
   };
+
+  const isAdmin = currentUser?.role === 'admin';
 
   // Auth tekshirilayotgan paytda
   if (authChecking) {
@@ -187,13 +196,32 @@ function App() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all font-medium"
-            >
-              <LogOut className="w-5 h-5" />
-              Chiqish
-            </button>
+            <div className="flex items-center gap-2">
+              {currentUser && (
+                <div className="text-right mr-2 hidden sm:block">
+                  <div className="text-sm font-semibold text-gray-800">{currentUser.name}</div>
+                  <div className="text-xs text-gray-500">
+                    {isAdmin ? 'Admin' : `Filial: ${currentUser.filial?.nomi || '—'}`}
+                  </div>
+                </div>
+              )}
+              {isAdmin && (
+                <button
+                  onClick={() => setIsManagementOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all font-medium"
+                >
+                  <Settings className="w-5 h-5" />
+                  Boshqaruv
+                </button>
+              )}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all font-medium"
+              >
+                <LogOut className="w-5 h-5" />
+                Chiqish
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -229,13 +257,15 @@ function App() {
         </div>
 
         <div className="mb-6 flex justify-end gap-3">
-          <button
-            onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium shadow-md transition-all"
-          >
-            <Upload className="w-5 h-5" />
-            Excel dan import
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setIsImportModalOpen(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium shadow-md transition-all"
+            >
+              <Upload className="w-5 h-5" />
+              Excel dan import
+            </button>
+          )}
           <button
             onClick={() => handleOpenModal()}
             className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-md transition-all"
@@ -285,6 +315,7 @@ function App() {
           substation={editingSubstation}
           onClose={handleCloseModal}
           onSave={handleSaveSubstation}
+          lockedFilial={isAdmin ? null : currentUser?.filial?.nomi ?? null}
         />
 
         <DeleteModal
@@ -301,6 +332,14 @@ function App() {
           onImportComplete={() => fetchSubstations()}
           activeCategory={activeTab}
         />
+
+        {currentUser && (
+          <ManagementModal
+            isOpen={isManagementOpen}
+            onClose={() => setIsManagementOpen(false)}
+            currentUserId={currentUser.id}
+          />
+        )}
       </div>
     </div>
   );

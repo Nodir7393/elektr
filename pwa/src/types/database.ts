@@ -1,3 +1,11 @@
+export interface Filial {
+  id: number;
+  nomi: string;
+  substations_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Substation {
   id: string;
   met_filiali_nomi: string;

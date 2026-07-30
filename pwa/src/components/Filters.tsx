@@ -8,10 +8,17 @@ interface FiltersProps {
 }
 
 export function Filters({ substations, onFilterChange }: FiltersProps) {
+  const [selectedMetFiliali, setSelectedMetFiliali] = useState('');
+  const [podstansiyaSearch, setPodstansiyaSearch] = useState('');
   const [selectedCounterType, setSelectedCounterType] = useState('');
   const [selectedNominalVoltage, setSelectedNominalVoltage] = useState('');
   const [selectedVoltage, setSelectedVoltage] = useState('');
   const [selectedNominalCurrent, setSelectedNominalCurrent] = useState('');
+
+  const uniqueMetFiliallar = useMemo(
+    () => [...new Set(substations.map((s) => s.met_filiali_nomi).filter(Boolean))].sort(),
+    [substations]
+  );
 
   const uniqueCounterTypes = useMemo(
     () => [...new Set(substations.map((s) => s.hisoblagich_rusumi))].sort(),
@@ -35,12 +42,23 @@ export function Filters({ substations, onFilterChange }: FiltersProps) {
   );
 
   const applyFilters = (
+    metFiliali: string,
+    podstansiya: string,
     counterType: string,
     nominalVoltage: string,
     voltage: string,
     nominalCurrent: string
   ) => {
     let filtered = substations;
+
+    if (metFiliali) {
+      filtered = filtered.filter((s) => s.met_filiali_nomi === metFiliali);
+    }
+
+    if (podstansiya.trim()) {
+      const q = podstansiya.trim().toLowerCase();
+      filtered = filtered.filter((s) => s.podstansiya_nomi?.toLowerCase().includes(q));
+    }
 
     if (counterType) {
       filtered = filtered.filter((s) => s.hisoblagich_rusumi === counterType);
@@ -61,27 +79,39 @@ export function Filters({ substations, onFilterChange }: FiltersProps) {
     onFilterChange(filtered);
   };
 
+  const handleMetFilialiChange = (value: string) => {
+    setSelectedMetFiliali(value);
+    applyFilters(value, podstansiyaSearch, selectedCounterType, selectedNominalVoltage, selectedVoltage, selectedNominalCurrent);
+  };
+
+  const handlePodstansiyaChange = (value: string) => {
+    setPodstansiyaSearch(value);
+    applyFilters(selectedMetFiliali, value, selectedCounterType, selectedNominalVoltage, selectedVoltage, selectedNominalCurrent);
+  };
+
   const handleCounterTypeChange = (value: string) => {
     setSelectedCounterType(value);
-    applyFilters(value, selectedNominalVoltage, selectedVoltage, selectedNominalCurrent);
+    applyFilters(selectedMetFiliali, podstansiyaSearch, value, selectedNominalVoltage, selectedVoltage, selectedNominalCurrent);
   };
 
   const handleNominalVoltageChange = (value: string) => {
     setSelectedNominalVoltage(value);
-    applyFilters(selectedCounterType, value, selectedVoltage, selectedNominalCurrent);
+    applyFilters(selectedMetFiliali, podstansiyaSearch, selectedCounterType, value, selectedVoltage, selectedNominalCurrent);
   };
 
   const handleVoltageChange = (value: string) => {
     setSelectedVoltage(value);
-    applyFilters(selectedCounterType, selectedNominalVoltage, value, selectedNominalCurrent);
+    applyFilters(selectedMetFiliali, podstansiyaSearch, selectedCounterType, selectedNominalVoltage, value, selectedNominalCurrent);
   };
 
   const handleNominalCurrentChange = (value: string) => {
     setSelectedNominalCurrent(value);
-    applyFilters(selectedCounterType, selectedNominalVoltage, selectedVoltage, value);
+    applyFilters(selectedMetFiliali, podstansiyaSearch, selectedCounterType, selectedNominalVoltage, selectedVoltage, value);
   };
 
   const clearFilters = () => {
+    setSelectedMetFiliali('');
+    setPodstansiyaSearch('');
     setSelectedCounterType('');
     setSelectedNominalVoltage('');
     setSelectedVoltage('');
@@ -90,7 +120,7 @@ export function Filters({ substations, onFilterChange }: FiltersProps) {
   };
 
   const hasActiveFilters =
-    selectedCounterType || selectedNominalVoltage || selectedVoltage || selectedNominalCurrent;
+    selectedMetFiliali || podstansiyaSearch || selectedCounterType || selectedNominalVoltage || selectedVoltage || selectedNominalCurrent;
 
   return (
     <div className="bg-white rounded-lg border-2 border-gray-200 p-4 mb-6 shadow-sm">
@@ -109,7 +139,38 @@ export function Filters({ substations, onFilterChange }: FiltersProps) {
           </button>
         )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            MET filiali nomi
+          </label>
+          <select
+            value={selectedMetFiliali}
+            onChange={(e) => handleMetFilialiChange(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Hammasi</option>
+            {uniqueMetFiliallar.map((nomi) => (
+              <option key={nomi} value={nomi}>
+                {nomi}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Podstansiya nomi
+          </label>
+          <input
+            type="text"
+            value={podstansiyaSearch}
+            onChange={(e) => handlePodstansiyaChange(e.target.value)}
+            placeholder="Nomi bo'yicha qidirish..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Hisoblagich rusumi

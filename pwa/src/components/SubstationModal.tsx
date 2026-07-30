@@ -7,12 +7,14 @@ interface SubstationModalProps {
   substation?: Substation;
   onClose: () => void;
   onSave: (data: Partial<Substation>) => Promise<void>;
+  // Filial foydalanuvchisi uchun MET filiali qulflanadi (o'z filiali)
+  lockedFilial?: string | null;
 }
 
-export function SubstationModal({ isOpen, substation, onClose, onSave }: SubstationModalProps) {
+export function SubstationModal({ isOpen, substation, onClose, onSave, lockedFilial }: SubstationModalProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<Substation>>({
-    met_filiali_nomi: '',
+    met_filiali_nomi: lockedFilial || '',
     podstansiya_nomi: '',
     tarmoq_nomi: '',
     kuchlanishi: 220,
@@ -35,7 +37,7 @@ export function SubstationModal({ isOpen, substation, onClose, onSave }: Substat
       setFormData(substation);
     } else {
       setFormData({
-        met_filiali_nomi: '',
+        met_filiali_nomi: lockedFilial || '',
         podstansiya_nomi: '',
         tarmoq_nomi: '',
         kuchlanishi: 220,
@@ -53,7 +55,7 @@ export function SubstationModal({ isOpen, substation, onClose, onSave }: Substat
         voltage_category: '220-500kV',
       });
     }
-  }, [substation, isOpen]);
+  }, [substation, isOpen, lockedFilial]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -100,10 +102,12 @@ export function SubstationModal({ isOpen, substation, onClose, onSave }: Substat
               <input
                 type="text"
                 name="met_filiali_nomi"
-                value={formData.met_filiali_nomi || ''}
+                value={lockedFilial ?? formData.met_filiali_nomi ?? ''}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                readOnly={!!lockedFilial}
+                title={lockedFilial ? 'Sizning filialingiz' : undefined}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${lockedFilial ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
               />
             </div>
 

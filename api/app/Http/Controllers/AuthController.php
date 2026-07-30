@@ -23,6 +23,7 @@ class AuthController extends Controller
         }
 
         $user = Auth::user();
+        $user->load('filial');
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
@@ -40,6 +41,6 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
-        return response()->json($request->user());
+        return response()->json($request->user()->load('filial'));
     }
 }

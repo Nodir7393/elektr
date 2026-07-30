@@ -49,7 +49,11 @@ Seeded admin: `admin@qiyom.uz` / password in `api/database/seeders/AdminSeeder.p
 
 **Auth flow.** Login returns a Sanctum plain-text token, stored in `localStorage['auth_token']` and sent as `Authorization: Bearer`. Any `401` triggers `localStorage.removeItem` + `window.location.reload()` (in `api.ts` `handleResponse`). All routes except `POST /api/login` are behind `auth:sanctum`.
 
-**Data flows to the client whole.** `GET /api/substations` returns *every* row (ordered by `created_at`). `App.tsx` holds all substations in state; **tab-splitting by `voltage_category`, filtering, statistics, and pagination (30/page) are all done client-side** in React. There is no server-side filtering/paging — keep this in mind before adding query params to the backend.
+**Roles & filiallar.** `users.role` is `'admin' | 'filial'` (see `add_role_and_filial_to_users` migration). Filial users have `users.filial_id` → `filiallar` table. Admin-only routes (`users`, `filiallar`, `substations/import`) sit behind the `admin` middleware alias (`EnsureAdmin`, registered in `bootstrap/app.php`). `AuthController@me`/`login` eager-load `filial`. The frontend branches on `currentUser.role` in `App.tsx` (admin sees "Boshqaruv" panel `ManagementModal`, import; filial user's substation form locks `met_filiali_nomi`).
+
+**A filial is linked to substations by name**, not FK: `Filial.nomi` matches `substations.met_filiali_nomi`. The `filiallar` table is backfilled from `DISTINCT met_filiali_nomi` in its migration.
+
+**Data flows to the client whole (admin) / scoped (filial).** `GET /api/substations` returns *every* row for admins, but is filtered to the user's `met_filiali_nomi` for filial users (`SubstationController@index`). `App.tsx` holds the returned substations in state; **tab-splitting by `voltage_category`, filtering, statistics, and pagination (30/page) are all done client-side** in React. `store`/`update`/`destroy` also enforce filial ownership server-side.
 
 **The `Substation` model is the whole domain.** One table, defined in three places that must stay in sync:
 - `pwa/src/types/database.ts` — TS interface

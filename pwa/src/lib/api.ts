@@ -1,11 +1,22 @@
-import type { Substation } from '../types/database';
+import type { Substation, Filial } from '../types/database';
 
 export interface AuthUser {
     id: number;
     name: string;
     email: string;
+    role: 'admin' | 'filial';
+    filial_id: number | null;
+    filial?: Filial | null;
     created_at?: string;
     updated_at?: string;
+}
+
+export interface UserInput {
+    name: string;
+    email: string;
+    password?: string;
+    role: 'admin' | 'filial';
+    filial_id: number | null;
 }
 
 const API_BASE = (import.meta.env.VITE_API_URL || '') + '/api';
@@ -91,6 +102,70 @@ export const api = {
                 localStorage.removeItem('auth_token');
                 window.location.reload();
             }
+            if (!r.ok) throw new Error(`HTTP error ${r.status}`);
+        });
+    },
+
+    // Filiallar (faqat admin)
+    getFiliallar: (): Promise<Filial[]> => {
+        return fetch(`${API_BASE}/filiallar`, {
+            headers: { ...getAuthHeaders() },
+        }).then((r) => handleResponse<Filial[]>(r));
+    },
+
+    createFilial: (nomi: string): Promise<Filial> => {
+        return fetch(`${API_BASE}/filiallar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ nomi }),
+        }).then((r) => handleResponse<Filial>(r));
+    },
+
+    updateFilial: (id: number, nomi: string): Promise<Filial> => {
+        return fetch(`${API_BASE}/filiallar/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ nomi }),
+        }).then((r) => handleResponse<Filial>(r));
+    },
+
+    deleteFilial: (id: number): Promise<void> => {
+        return fetch(`${API_BASE}/filiallar/${id}`, {
+            method: 'DELETE',
+            headers: { ...getAuthHeaders() },
+        }).then((r) => {
+            if (!r.ok) throw new Error(`HTTP error ${r.status}`);
+        });
+    },
+
+    // Foydalanuvchilar (faqat admin)
+    getUsers: (): Promise<AuthUser[]> => {
+        return fetch(`${API_BASE}/users`, {
+            headers: { ...getAuthHeaders() },
+        }).then((r) => handleResponse<AuthUser[]>(r));
+    },
+
+    createUser: (data: UserInput): Promise<AuthUser> => {
+        return fetch(`${API_BASE}/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify(data),
+        }).then((r) => handleResponse<AuthUser>(r));
+    },
+
+    updateUser: (id: number, data: Partial<UserInput>): Promise<AuthUser> => {
+        return fetch(`${API_BASE}/users/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify(data),
+        }).then((r) => handleResponse<AuthUser>(r));
+    },
+
+    deleteUser: (id: number): Promise<void> => {
+        return fetch(`${API_BASE}/users/${id}`, {
+            method: 'DELETE',
+            headers: { ...getAuthHeaders() },
+        }).then((r) => {
             if (!r.ok) throw new Error(`HTTP error ${r.status}`);
         });
     },
