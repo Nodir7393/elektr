@@ -180,7 +180,7 @@ function App() {
               <Building2 className="w-8 h-8 text-blue-600" />
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">
-                  Podstansiya Boshqaruv Tizimi !!
+                  Podstansiya Boshqaruv Tizimi
                 </h1>
                 <p className="text-sm text-gray-600 mt-1">
                   Elektr hisoblagichlari va podstansiyalarni monitoring qilish
