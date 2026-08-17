@@ -22,5 +22,6 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Podstansiyalar — admin hammasi, filial user faqat o'z filiali (controllerda scope)
+    Route::post('substations/bulk-delete', [SubstationController::class , 'bulkDestroy']);
     Route::apiResource('substations', SubstationController::class);
 });

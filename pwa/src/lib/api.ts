@@ -106,6 +106,22 @@ export const api = {
         });
     },
 
+    deleteSubstations: (ids: string[]): Promise<{ deleted: number }> => {
+        return fetch(`${API_BASE}/substations/bulk-delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ ids }),
+        }).then((r) => handleResponse<{ deleted: number }>(r));
+    },
+
+    deleteAllSubstations: (voltageCategory?: string): Promise<{ deleted: number }> => {
+        return fetch(`${API_BASE}/substations/bulk-delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ all: true, voltage_category: voltageCategory }),
+        }).then((r) => handleResponse<{ deleted: number }>(r));
+    },
+
     // Filiallar (faqat admin)
     getFiliallar: (): Promise<Filial[]> => {
         return fetch(`${API_BASE}/filiallar`, {

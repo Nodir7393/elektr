@@ -106,6 +106,44 @@ class SubstationController extends Controller
     }
 
     /**
+     * Bir nechta podstansiyani (yoki kategoriyadagi hammasini) o'chirish.
+     * `ids` — belgilangan qatorlar, `all` — filtrga mos hamma qator.
+     */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'ids' => 'required_without:all|array|min:1',
+            'ids.*' => 'required|uuid',
+            'all' => 'required_without:ids|boolean',
+            'voltage_category' => 'nullable|string|in:220-500kV,35-110kV',
+        ]);
+
+        // `all: false` bilan hamma narsani o'chirib yubormaslik uchun
+        if (empty($validated['ids']) && empty($validated['all'])) {
+            abort(422, 'O\'chirish uchun qatorlarni belgilang yoki `all` ni yoqing.');
+        }
+
+        $query = Substation::query();
+
+        // Filial foydalanuvchisi faqat o'z filiali qatorlarini o'chira oladi
+        if (! $user->isAdmin()) {
+            $query->where('met_filiali_nomi', $this->filialNomi($user));
+        }
+
+        if (! empty($validated['ids'])) {
+            $query->whereIn('id', $validated['ids']);
+        } elseif (! empty($validated['voltage_category'])) {
+            $query->where('voltage_category', $validated['voltage_category']);
+        }
+
+        $deleted = $query->delete();
+
+        return response()->json(['deleted' => $deleted]);
+    }
+
+    /**
      * Foydalanuvchining filial nomi (met_filiali_nomi bilan solishtiriladi).
      */
     private function filialNomi($user): ?string

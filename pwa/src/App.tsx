@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Building2, Database, Plus, Upload, LogOut, Settings } from 'lucide-react';
+import { Building2, Database, Plus, Upload, LogOut, Settings, Trash2 } from 'lucide-react';
 import { api } from './lib/api';
 import type { AuthUser } from './lib/api';
 import type { Substation } from './types/database';
@@ -28,6 +28,8 @@ function App() {
   const [editingSubstation, setEditingSubstation] = useState<Substation | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<Substation | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkTarget, setBulkTarget] = useState<'selected' | 'all' | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 30;
@@ -63,6 +65,7 @@ function App() {
     );
     setFilteredSubstations(categorySubstations);
     setCurrentPage(1);
+    setSelectedIds(new Set());
   }, [substations, activeTab]);
 
   async function fetchSubstations() {
@@ -80,6 +83,36 @@ function App() {
   const handleFilterChange = (filtered: Substation[]) => {
     setFilteredSubstations(filtered);
     setCurrentPage(1);
+    // Filtrdan tushib qolgan qatorlarni belgilanganlardan chiqaramiz
+    setSelectedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const visible = new Set(filtered.map((s) => s.id));
+      return new Set([...prev].filter((id) => visible.has(id)));
+    });
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleTogglePage = (ids: string[], selected: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => (selected ? next.add(id) : next.delete(id)));
+      return next;
+    });
+  };
+
+  const handleSelectAllFiltered = () => {
+    setSelectedIds(new Set(filteredSubstations.map((s) => s.id)));
   };
 
   const handleOpenModal = (substation?: Substation) => {
@@ -118,6 +151,28 @@ function App() {
       setDeleteTarget(null);
     } catch (error) {
       console.error('Error deleting substation:', error);
+      alert('Xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!bulkTarget) return;
+
+    try {
+      setDeleteLoading(true);
+      if (bulkTarget === 'all') {
+        await api.deleteAllSubstations(activeTab);
+      } else {
+        await api.deleteSubstations([...selectedIds]);
+      }
+
+      setSelectedIds(new Set());
+      setBulkTarget(null);
+      await fetchSubstations();
+    } catch (error) {
+      console.error('Error bulk deleting substations:', error);
       alert('Xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.');
     } finally {
       setDeleteLoading(false);
@@ -257,6 +312,15 @@ function App() {
         </div>
 
         <div className="mb-6 flex justify-end gap-3">
+          {currentSubstations.length > 0 && (
+            <button
+              onClick={() => setBulkTarget('all')}
+              className="flex items-center gap-2 px-6 py-3 bg-white text-red-600 border-2 border-red-200 rounded-lg hover:bg-red-50 font-medium shadow-sm transition-all"
+            >
+              <Trash2 className="w-5 h-5" />
+              Hammasini o'chirish
+            </button>
+          )}
           {isAdmin && (
             <button
               onClick={() => setIsImportModalOpen(true)}
@@ -282,14 +346,46 @@ function App() {
               substations={currentSubstations}
               onFilterChange={handleFilterChange}
             />
-            <div className="mb-4 text-sm text-gray-600">
-              Jami: <span className="font-bold">{filteredSubstations.length}</span> ta podstansiya
-            </div>
+            {selectedIds.size > 0 ? (
+              <div className="mb-4 flex flex-wrap items-center gap-3 bg-blue-50 border-2 border-blue-200 rounded-lg px-4 py-3">
+                <span className="text-sm text-gray-800">
+                  <span className="font-bold">{selectedIds.size}</span> ta qator belgilandi
+                </span>
+                {selectedIds.size < filteredSubstations.length && (
+                  <button
+                    onClick={handleSelectAllFiltered}
+                    className="text-sm font-medium text-blue-700 hover:text-blue-900 underline"
+                  >
+                    Barcha {filteredSubstations.length} tasini belgilash
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-sm font-medium text-gray-600 hover:text-gray-900 underline"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  onClick={() => setBulkTarget('selected')}
+                  className="ml-auto flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Belgilanganlarni o'chirish
+                </button>
+              </div>
+            ) : (
+              <div className="mb-4 text-sm text-gray-600">
+                Jami: <span className="font-bold">{filteredSubstations.length}</span> ta podstansiya
+              </div>
+            )}
             <SubstationTable
               substations={paginatedSubstations}
               onEdit={handleOpenModal}
               onDelete={(substation) => setDeleteTarget(substation)}
               startIndex={(currentPage - 1) * ITEMS_PER_PAGE}
+              selectedIds={selectedIds}
+              onToggleSelect={handleToggleSelect}
+              onTogglePage={handleTogglePage}
             />
             <Pagination
               currentPage={currentPage}
@@ -323,6 +419,18 @@ function App() {
           title={deleteTarget ? `${deleteTarget.podstansiya_nomi}` : ''}
           onConfirm={handleDeleteSubstation}
           onCancel={() => setDeleteTarget(null)}
+          loading={deleteLoading}
+        />
+
+        <DeleteModal
+          isOpen={!!bulkTarget}
+          title={
+            bulkTarget === 'all'
+              ? `${activeTab} kategoriyasidagi barcha ${currentSubstations.length} ta podstansiyani`
+              : `belgilangan ${selectedIds.size} ta podstansiyani`
+          }
+          onConfirm={handleBulkDelete}
+          onCancel={() => setBulkTarget(null)}
           loading={deleteLoading}
         />
 

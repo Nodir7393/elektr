@@ -6,9 +6,23 @@ interface SubstationTableProps {
   onEdit: (substation: Substation) => void;
   onDelete: (substation: Substation) => void;
   startIndex?: number;
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string) => void;
+  onTogglePage: (ids: string[], selected: boolean) => void;
 }
 
-export function SubstationTable({ substations, onEdit, onDelete, startIndex = 0 }: SubstationTableProps) {
+export function SubstationTable({
+  substations,
+  onEdit,
+  onDelete,
+  startIndex = 0,
+  selectedIds,
+  onToggleSelect,
+  onTogglePage,
+}: SubstationTableProps) {
+  const pageIds = substations.map((s) => s.id);
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
+
   if (substations.length === 0) {
     return (
       <div className="text-center py-12 bg-white rounded-lg border-2 border-gray-200">
@@ -22,6 +36,15 @@ export function SubstationTable({ substations, onEdit, onDelete, startIndex = 0 
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
+            <th className="px-4 py-3 text-left w-10">
+              <input
+                type="checkbox"
+                checked={allPageSelected}
+                onChange={(e) => onTogglePage(pageIds, e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                title="Ushbu sahifadagi hammasini belgilash"
+              />
+            </th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
               Amallar
             </th>
@@ -65,7 +88,18 @@ export function SubstationTable({ substations, onEdit, onDelete, startIndex = 0 
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {substations.map((substation, index) => (
-            <tr key={substation.id} className="hover:bg-gray-50">
+            <tr
+              key={substation.id}
+              className={selectedIds.has(substation.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}
+            >
+              <td className="px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(substation.id)}
+                  onChange={() => onToggleSelect(substation.id)}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+              </td>
               <td className="px-4 py-3 whitespace-nowrap text-sm">
                 <div className="flex gap-2">
                   <button
